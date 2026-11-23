@@ -229,9 +229,11 @@
     try {
       return JSON.parse(trimmed);
     } catch {
-      const match = trimmed.match(/\{[\s\S]*\}/);
-      if (!match) return null;
-      const jsonified = match[0]
+      const match = trimmed.match(/\{[^{}]*apiKey[^{}]*\}/i) || trimmed.match(/firebaseConfig\s*=\s*(\{[\s\S]*?\})/i);
+      const block = match ? (match[1] || match[0]) : null;
+      if (!block) return null;
+      const jsonified = block
+        .replace(/\/\/.*$/gm, '')
         .replace(/,\s*}/g, '}')
         .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
         .replace(/'/g, '"');
