@@ -215,6 +215,7 @@
   let unsubFirestore = null;
   let syncPushTimer = null;
   let ignoreRemoteEcho = false;
+  let forceNextCloudPull = false;
 
   function setSyncBadge(online, label) {
     const dot = document.getElementById('syncDot');
@@ -240,12 +241,13 @@
     return cfg.apiKey && cfg.projectId ? cfg : null;
   }
 
-  function initFirebaseSync() {
+  function initFirebaseSync(preferCloud = false) {
     if (unsubFirestore) {
       unsubFirestore();
       unsubFirestore = null;
     }
     firestoreDoc = null;
+    if (preferCloud) forceNextCloudPull = true;
 
     const rawCfg = (localStorage.getItem(FB_CONFIG_STORAGE) || '').trim();
     const room = (localStorage.getItem(FB_ROOM_STORAGE) || '').trim();
@@ -270,13 +272,21 @@
           const remote = snap.data();
           if (remote && remote.payload) {
             const parsed = JSON.parse(remote.payload);
-            if ((parsed.updatedAt || 0) > (state.updatedAt || 0)) {
-              state = { ...defaultState(), ...parsed, profile: { ...defaultState().profile, ...(parsed.profile || {}) } };
+            const shouldPull = forceNextCloudPull || (parsed.updatedAt || 0) > (state.updatedAt || 0);
+            forceNextCloudPull = false;
+            if (shouldPull) {
+              state = {
+                ...defaultState(),
+                ...parsed,
+                routineDefs: Array.isArray(parsed.routineDefs) && parsed.routineDefs.length ? parsed.routineDefs : DEFAULT_ROUTINES,
+                profile: { ...defaultState().profile, ...(parsed.profile || {}) }
+              };
               localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
               renderAll();
             }
           }
         } else {
+          forceNextCloudPull = false;
           pushToCloud();
         }
       }, () => {
