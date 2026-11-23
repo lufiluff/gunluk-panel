@@ -227,18 +227,17 @@
     const trimmed = (raw || '').trim();
     if (!trimmed) return null;
     try {
-      return JSON.parse(trimmed);
-    } catch {
-      const match = trimmed.match(/\{[^{}]*apiKey[^{}]*\}/i) || trimmed.match(/firebaseConfig\s*=\s*(\{[\s\S]*?\})/i);
-      const block = match ? (match[1] || match[0]) : null;
-      if (!block) return null;
-      const jsonified = block
-        .replace(/\/\/.*$/gm, '')
-        .replace(/,\s*}/g, '}')
-        .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
-        .replace(/'/g, '"');
-      return JSON.parse(jsonified);
-    }
+      const parsed = JSON.parse(trimmed);
+      if (parsed && parsed.projectId) return parsed;
+    } catch { /* fallback to field extraction */ }
+
+    const fields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId', 'databaseURL'];
+    const cfg = {};
+    fields.forEach(k => {
+      const m = trimmed.match(new RegExp(`["']?${k}["']?\\s*:\\s*["']([^"']+)["']`));
+      if (m) cfg[k] = m[1].trim();
+    });
+    return cfg.apiKey && cfg.projectId ? cfg : null;
   }
 
   function initFirebaseSync() {
