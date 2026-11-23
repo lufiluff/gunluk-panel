@@ -223,6 +223,22 @@
     if (txt) txt.textContent = label;
   }
 
+  function parseFirebaseConfigInput(raw) {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      const match = trimmed.match(/\{[\s\S]*\}/);
+      if (!match) return null;
+      const jsonified = match[0]
+        .replace(/,\s*}/g, '}')
+        .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+        .replace(/'/g, '"');
+      return JSON.parse(jsonified);
+    }
+  }
+
   function initFirebaseSync() {
     if (unsubFirestore) {
       unsubFirestore();
@@ -238,7 +254,8 @@
     }
 
     try {
-      const cfg = JSON.parse(rawCfg);
+      const cfg = parseFirebaseConfigInput(rawCfg);
+      if (!cfg || !cfg.projectId) throw new Error('Invalid config');
       const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
       const db = firebase.firestore(app);
       firestoreDoc = db.collection('kisisel_panel').doc(room);
