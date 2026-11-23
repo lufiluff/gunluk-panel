@@ -2038,9 +2038,15 @@
   });
 
   document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+    const prevRoom = (localStorage.getItem(FB_ROOM_STORAGE) || '').trim();
+    const prevCfg = (localStorage.getItem(FB_CONFIG_STORAGE) || '').trim();
+    const newRoom = document.getElementById('syncRoomInput').value.trim();
+    const newCfg = document.getElementById('firebaseConfigInput').value.trim();
+    const isNewCloudConnection = !!(newRoom && newCfg && (newRoom !== prevRoom || newCfg !== prevCfg));
+
     localStorage.setItem(GEMINI_KEY_STORAGE, document.getElementById('geminiKeyInput').value.trim());
-    localStorage.setItem(FB_ROOM_STORAGE, document.getElementById('syncRoomInput').value.trim());
-    localStorage.setItem(FB_CONFIG_STORAGE, document.getElementById('firebaseConfigInput').value.trim());
+    localStorage.setItem(FB_ROOM_STORAGE, newRoom);
+    localStorage.setItem(FB_CONFIG_STORAGE, newCfg);
 
     const cal = Number(document.getElementById('profCalTarget').value) || 2100;
     const pro = Number(document.getElementById('profProTarget').value) || 140;
@@ -2057,9 +2063,15 @@
       waterIntervalMins: Number(document.getElementById('profWaterMins').value) || 75
     };
 
-    saveState();
     settingsModal.classList.add('hidden');
-    initFirebaseSync();
+    if (isNewCloudConnection) {
+      // Pull existing cloud data first instead of overwriting with fresh device state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      initFirebaseSync(true);
+    } else {
+      saveState();
+      initFirebaseSync(false);
+    }
     scheduleWaterReminder();
     renderAll();
   });
