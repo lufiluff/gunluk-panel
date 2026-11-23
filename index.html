@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Günlük Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Firebase Compat SDK (opsiyonel anlık bulut senkronizasyonu için) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar / Bottom Nav -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-name">Günlük Panel</span>
+      </div>
+
+      <nav class="nav" role="tablist">
+        <button class="nav-btn active" data-tab="main">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Ana Sayfa</span>
+        </button>
+        <button class="nav-btn" data-tab="journal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>Günlük</span>
+        </button>
+        <button class="nav-btn" data-tab="english">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>İngilizce</span>
+        </button>
+        <button class="nav-btn" data-tab="workout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7v10M18 7v10M3 9v6M21 9v6M6 12h12"/></svg>
+          <span>Spor</span>
+        </button>
+        <button class="nav-btn" data-tab="nutrition">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          <span>Beslenme</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sync-status" id="syncStatus">
+          <span class="status-dot" id="syncDot"></span>
+          <span id="syncText">Yerel Kayıt</span>
+        </div>
+        <button class="ghost-btn" id="openSettingsBtn">
+          <span>Ayarlar &amp; Bağlantı</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="date-controls">
+          <button class="icon-btn" id="prevDayBtn" aria-label="Önceki gün">&lsaquo;</button>
+          <div class="date-display">
+            <span id="currentDateLabel">Bugün</span>
+            <input type="date" id="datePicker" aria-label="Tarih seç" />
+          </div>
+          <button class="icon-btn" id="nextDayBtn" aria-label="Sonraki gün">&rsaquo;</button>
+          <button class="text-btn" id="todayBtn">Bugün</button>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="icon-btn" id="themeToggleBtn" title="Açık / Koyu Tema" aria-label="Tema değiştir">◐</button>
+          <button class="icon-btn mobile-settings-btn" id="mobileSettingsBtn" title="Ayarlar" aria-label="Ayarlar">⚙</button>
+        </div>
+      </header>
+
+      <!-- ===================== TAB 1: ANA SAYFA ===================== -->
+      <section class="tab-panel active" id="tab-main">
+        <!-- IELTS Countdown Banner -->
+        <div class="countdown-banner">
+          <div>
+            <span class="muted small">IELTS Academic Hedefi</span>
+            <h1 class="countdown-title" id="ieltsCountdownText">Hesaplanıyor...</h1>
+          </div>
+          <span class="badge" id="ieltsDateBadge">Ocak 2027</span>
+        </div>
+
+        <!-- Quick Jump Cards -->
+        <div class="summary-grid">
+          <div class="stat-card" data-jump="english" data-sub="vocab">
+            <span class="stat-label">Kelimeler (IELTS) &rarr;</span>
+            <strong class="stat-value" id="sumEnglish">0 / 0 kelime</strong>
+            <button type="button" class="inline-link-btn" id="sumMistakesBtn" data-jump="english" data-sub="mistakes">0 hata kartı &rarr;</button>
+          </div>
+          <div class="stat-card" data-jump="workout">
+            <span class="stat-label">Spor &rarr;</span>
+            <strong class="stat-value" id="sumWorkout">0%</strong>
+            <span class="muted small" id="sumWorkoutName">Ev Antrenmanı</span>
+          </div>
+          <div class="stat-card" data-jump="nutrition">
+            <span class="stat-label">Beslenme &rarr;</span>
+            <strong class="stat-value" id="sumCalories">0 / 2100</strong>
+            <span class="muted small" id="sumProtein">0 / 140g protein</span>
+          </div>
+        </div>
+
+        <!-- Performance Score Card (All-Time + Today) -->
+        <div class="card mb-16">
+          <div class="card-header">
+            <div>
+              <h2>Günlük Performans Puanım</h2>
+              <p class="muted small">Görev · İngilizce · Spor · Beslenme · Rutin &amp; Uyku (her biri 20 puan)</p>
+            </div>
+            <div class="perf-badges">
+              <span class="badge" id="todayScoreBadge">Bugün: 0 / 100</span>
+              <span class="badge" id="avgScoreBadge">Ortalama: 0 / 100</span>
+            </div>
+          </div>
+          <div class="perf-history" id="perfHistoryGrid"></div>
+        </div>
+
+        <div class="two-col">
+          <!-- Simple Daily To-Do List -->
+          <div class="card">
+            <div class="card-header">
+              <h2>Bugünün Yapılacakları</h2>
+              <span class="badge" id="taskProgressBadge">0 / 0</span>
+            </div>
+            <form class="inline-form" id="taskForm">
+              <input type="text" id="taskInput" class="input" placeholder="Yeni yapılacak ekle..." required />
+              <button type="submit" class="primary-btn">Ekle</button>
+            </form>
+            <ul class="list" id="taskList"></ul>
+          </div>
+
+          <!-- Today's 5 Words (Directly visible without clicking) -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2>Günün 5 Kelimesi</h2>
+                <p class="muted small">Bugün pekiştirmen gereken kelimeler</p>
+              </div>
+              <button class="text-btn" id="mainGoQuizBtn">Sınava Git &rarr;</button>
+            </div>
+            <ul class="list" id="mainDailyWordsList"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== TAB 1.5: GÜNLÜK (UYKU + RUTİNLER + NOT) ===================== -->
+      <section class="tab-panel" id="tab-journal">
+        <div class="two-col">
+          <!-- Morning & Evening Routines -->
+          <div class="card">
+            <div class="card-header">
+              <h2>Sabah &amp; Akşam Rutinlerim</h2>
+              <span class="badge" id="routineProgressBadge">0 / 0</span>
+            </div>
+
+            <div class="routine-group">
+              <h3 class="subheading mt-0">☀ Sabah Rutini</h3>
+              <div class="habit-list" id="morningRoutineList"></div>
+            </div>
+
+            <div class="routine-group mt-16">
+              <h3 class="subheading mt-0">☾ Akşam Rutini</h3>
+              <div class="habit-list" id="eveningRoutineList"></div>
+            </div>
+
+            <form class="inline-form mt-16" id="addRoutineForm">
+              <select id="newRoutinePeriod" class="input compact-select">
+                <option value="morning">Sabah</option>
+                <option value="evening">Akşam</option>
+              </select>
+              <input type="text" id="newRoutineInput" class="input" placeholder="Yeni rutin ekle (örn: Vitamin iç)..." required />
+              <button type="submit" class="primary-btn">Ekle</button>
+            </form>
+          </div>
+
+          <!-- Sleep Tracker & Daily Note -->
+          <div class="stack">
+            <div class="card">
+              <div class="card-header">
+                <h2>Uyku Takibi</h2>
+                <div class="inline-form">
+                  <span class="badge" id="sleepDurationBadge">—</span>
+                  <button type="button" class="text-btn" id="clearSleepBtn" title="Bugünün uyku kaydını sil">Temizle</button>
+                </div>
+              </div>
+              <div class="profile-form">
+                <div class="field">
+                  <label for="sleepBedTime">Uyuduğum Saat</label>
+                  <input type="time" id="sleepBedTime" class="input" />
+                </div>
+                <div class="field">
+                  <label for="sleepWakeTime">Uyandığım Saat</label>
+                  <input type="time" id="sleepWakeTime" class="input" />
+                </div>
+              </div>
+              <p class="muted small mt-12" id="sleepAvgText">Uyku saatlerini girdiğinde otomatik hesaplanır.</p>
+              <ul class="list" id="sleepHistoryList"></ul>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2>Günün Günlüğü</h2>
+                <span class="muted small" id="journalSavedStatus">Kaydedildi</span>
+              </div>
+              <textarea id="journalNote" class="textarea" rows="5" placeholder="Bugün nasıl geçti, aklında kalanlar, yarın için notların..."></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== TAB 2: İNGİLİZCE (IELTS) ===================== -->
+      <section class="tab-panel" id="tab-english">
+        <!-- Sub-tabs for clean organization -->
+        <div class="subtabs">
+          <button class="subtab-btn active" data-eng-sub="vocab">Kelimeler &amp; Sınav</button>
+          <button class="subtab-btn" data-eng-sub="writing">Writing &amp; Günün Sorusu</button>
+          <button class="subtab-btn" data-eng-sub="mistakes">Hata Kartları</button>
+          <button class="subtab-btn" data-eng-sub="grammar">Gramer</button>
+          <button class="subtab-btn" data-eng-sub="speaklisten">Speaking &amp; Listening</button>
+        </div>
+
+        <!-- SUB 1: Vocab, Flashcards, Quiz & Daily Tracker -->
+        <div class="subtab-panel active" id="eng-vocab">
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header">
+                <h2>Kelime Defterim</h2>
+                <div class="filter-pills">
+                  <button class="pill active" data-vocab-filter="all">Tümü</button>
+                  <button class="pill" data-vocab-filter="learning">Öğreniliyor</button>
+                  <button class="pill" data-vocab-filter="mastered">Öğrenildi</button>
+                </div>
+              </div>
+              <form class="vocab-form" id="vocabForm">
+                <input type="text" id="vocabWord" class="input" placeholder="Kelime" required />
+                <input type="text" id="vocabMeaning" class="input" placeholder="Anlamı" required />
+                <input type="text" id="vocabExample" class="input full-span" placeholder="Örnek cümle (isteğe bağlı)" />
+                <button type="submit" class="primary-btn full-span">Kelime Ekle</button>
+              </form>
+              <ul class="list" id="vocabList"></ul>
+            </div>
+
+            <div class="stack">
+              <div class="card">
+                <div class="card-header">
+                  <h2>Kelime Kartları</h2>
+                  <button class="text-btn" id="nextCardBtn">Sonraki &rarr;</button>
+                </div>
+                <div class="flashcard" id="flashcard" tabindex="0">
+                  <div class="flashcard-front" id="fcWord">...</div>
+                  <div class="flashcard-back hidden" id="fcBack">
+                    <p class="fc-meaning" id="fcMeaning"></p>
+                    <p class="fc-example muted" id="fcExample"></p>
+                  </div>
+                  <span class="muted small">Çevirmek için tıkla</span>
+                </div>
+                <div class="card-actions mt-12">
+                  <button class="ghost-btn full-w" id="markCardMasteredBtn">Öğrendim olarak işaretle ✓</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <h2 id="quizTitle">Günlük Kelime Sınavı</h2>
+                    <p class="muted small" id="quizSubtitle">Doğru bildiklerin otomatik "Öğrenildi"ye taşınır</p>
+                  </div>
+                  <button class="text-btn" id="startQuizBtn">Yeni Soru</button>
+                </div>
+                <div id="vocabQuizArea" class="quiz-area">
+                  <p class="muted small">Kelimelerinden rastgele bir test başlatmak için "Yeni Soru"ya tıkla.</p>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <h2>Günlük IELTS Takibi</h2>
+                </div>
+                <div class="habit-list" id="ieltsChecklist"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB 2: Writing & Daily Question -->
+        <div class="subtab-panel" id="eng-writing">
+          <div class="card">
+            <div class="card-header">
+              <h2>Günün IELTS Sorusu &amp; Writing</h2>
+              <button class="ghost-btn" id="genDailyQuestionBtn">Yeni Soru Üret (AI)</button>
+            </div>
+            <div class="prompt-box" id="dailyIeltsPrompt">
+              In many factories today, artificial intelligence and automated systems are taking over routine tasks. Do the advantages of this trend outweigh the disadvantages?
+            </div>
+            <textarea id="writingAnswer" class="textarea mt-12" rows="6" placeholder="İngilizce cevabını buraya yaz..."></textarea>
+            <div class="row-between mt-12">
+              <span class="muted small" id="writingWordCount">0 kelime</span>
+              <button class="primary-btn" id="evaluateWritingBtn">Değerlendir &amp; Hata Kartı Çıkar (AI)</button>
+            </div>
+            <div id="writingFeedback" class="ai-output hidden mt-12"></div>
+          </div>
+        </div>
+
+        <!-- SUB 3: Mistake Cards -->
+        <div class="subtab-panel" id="eng-mistakes">
+          <div class="card">
+            <div class="card-header">
+              <h2>Hata Kartlarım</h2>
+              <span class="muted small">Writing ve Speaking'de yaptığın hatalar burada birikir</span>
+            </div>
+            <form class="vocab-form" id="mistakeForm">
+              <input type="text" id="mistakeWrong" class="input" placeholder="Yanlış kullanım (örn: better on)" required />
+              <input type="text" id="mistakeRight" class="input" placeholder="Doğrusu (örn: better AT)" required />
+              <input type="text" id="mistakeNote" class="input full-span" placeholder="Kısa kural notu (isteğe bağlı)" />
+              <button type="submit" class="primary-btn full-span">Hata Kartı Ekle</button>
+            </form>
+            <ul class="list" id="mistakeList"></ul>
+          </div>
+        </div>
+
+        <!-- SUB 4: Grammar (Kolay / Orta / Zor) -->
+        <div class="subtab-panel" id="eng-grammar">
+          <div class="card">
+            <div class="card-header">
+              <h2>Günlük Gramer Çalışması</h2>
+              <div class="inline-form">
+                <select id="grammarLevel" class="input compact-select">
+                  <option value="Kolay (B1)">Kolay (Temel Pekiştirme)</option>
+                  <option value="Orta (B2 / Band 6.5)">Orta (IELTS Band 6.5)</option>
+                  <option value="Zor (C1 / Band 7.5+)">Zor (Akademik Band 7.5+)</option>
+                </select>
+                <button class="primary-btn" id="genGrammarBtn">Konu &amp; Alıştırma Getir (AI)</button>
+              </div>
+            </div>
+            <div id="grammarContent" class="ai-output">
+              <p class="muted">Zorluk seviyesini seçip "Konu &amp; Alıştırma Getir"e tıkla; sana özel kısa anlatım ve 3 alıştırma sorusu hazırlayayım.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB 5: Speaking & Listening -->
+        <div class="subtab-panel" id="eng-speaklisten">
+          <div class="two-col">
+            <!-- Speaking -->
+            <div class="card">
+              <div class="card-header">
+                <h2>Speaking Pratiği</h2>
+                <button class="text-btn" id="newSpeakingQBtn">Yeni Soru (AI)</button>
+              </div>
+              <div class="prompt-box" id="speakingPrompt">
+                Describe a technical or work-related problem you solved recently. What was the problem, and how did you fix it?
+              </div>
+              <div class="row-between mt-12">
+                <button class="ghost-btn" id="readSpeakingQBtn">🔊 Soruyu Dinle</button>
+                <button class="primary-btn" id="recordSpeechBtn">🎙️ Konuşmaya Başla</button>
+              </div>
+              <textarea id="speakingTranscript" class="textarea mt-12" rows="4" placeholder="Konuştukların buraya yazılır (veya kendin de yazabilirsin)..."></textarea>
+              <button class="primary-btn full-w mt-12" id="evalSpeakingBtn">Speaking Değerlendir &amp; Hata Çıkar (AI)</button>
+              <div id="speakingFeedback" class="ai-output hidden mt-12"></div>
+            </div>
+
+            <!-- Listening -->
+            <div class="card">
+              <div class="card-header">
+                <h2>Listening Pratiği</h2>
+                <button class="ghost-btn" id="genListeningBtn">Yeni Dinleme Üret (AI)</button>
+              </div>
+              <p class="muted small" id="listeningStatus">IELTS tarzı kısa bir dinleme parçası ve 3 soru üretmek için yukarıdaki butona tıkla.</p>
+              <div class="row-between mt-12 hidden" id="listeningControls">
+                <button class="primary-btn" id="playListeningBtn">▶ Parçayı Dinle (UK/US)</button>
+                <button class="ghost-btn" id="stopListeningBtn">⏹ Durdur</button>
+                <button class="text-btn" id="toggleScriptBtn">Metni Göster</button>
+              </div>
+              <div id="listeningScriptBox" class="tip-box hidden"></div>
+              <div id="listeningQuestionsBox" class="mt-12"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== TAB 3: SPOR (EV ANTRENMANI) ===================== -->
+      <section class="tab-panel" id="tab-workout">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 id="workoutDayTitle">Bugünün Ev Antrenmanı</h2>
+                <p class="muted small" id="workoutDayFocus">2x5 kg Dambıl + Duvar/Sandalye · Postür &amp; Fit Kaslanma</p>
+              </div>
+              <select id="workoutProgramSelect" class="input compact-select">
+                <option value="upper_posture">Üst Vücut &amp; Dik Duruş</option>
+                <option value="lower_core">Bacak &amp; Karın (Core)</option>
+                <option value="push_chest">Göğüs, Omuz &amp; Arka Kol</option>
+                <option value="pull_back">Sırt, Postür &amp; Ön Kol</option>
+                <option value="fullbody_fit">Full Body &amp; Yağ Yakımı</option>
+                <option value="mobility_light">Hafif Mobilite &amp; Core</option>
+              </select>
+            </div>
+
+            <ul class="list" id="workoutList"></ul>
+          </div>
+
+          <div class="stack">
+            <div class="card">
+              <div class="card-header">
+                <h2>Yaptıklarını Yaz (Kalori Hesapla)</h2>
+                <span class="badge" id="workoutBurnedBadge">0 kcal yakıldı</span>
+              </div>
+              <form id="aiWorkoutLogForm">
+                <textarea id="aiWorkoutLogInput" class="textarea" rows="3" placeholder="Örn: Bugün 25 dk tempolu yürüdüm, 3x15 5kg dambıl row ve 3x12 şınav çektim..." required></textarea>
+                <button type="submit" class="primary-btn full-w mt-8" id="aiWorkoutLogBtn">Hesapla &amp; Hafızaya Al (AI)</button>
+              </form>
+              <div id="aiWorkoutLogComment" class="ai-output hidden mt-12"></div>
+              <ul class="list" id="workoutLogList"></ul>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2>Ekstra Hareket Ekle</h2>
+              </div>
+              <form class="workout-add-form" id="customExerciseForm">
+                <input type="text" id="exName" class="input" placeholder="Hareket adı" required />
+                <input type="number" id="exWeight" class="input num-input" placeholder="kg" min="0" step="0.5" />
+                <input type="number" id="exSets" class="input num-input" placeholder="Set" min="1" value="3" />
+                <input type="number" id="exReps" class="input num-input" placeholder="Tekrar" min="1" value="12" />
+                <button type="submit" class="primary-btn">Ekle</button>
+              </form>
+
+              <details class="custom-food-details mt-12">
+                <summary class="muted small">+ Hazır ev hareketlerinden seçip ekle</summary>
+                <div class="mt-8">
+                  <select id="suggestionCategory" class="input">
+                    <option value="posture">Dik Duruş &amp; Sırt</option>
+                    <option value="chest">Göğüs &amp; Omuz</option>
+                    <option value="core">Göbek / Core</option>
+                    <option value="legs">Bacak (Sandalye/Duvar)</option>
+                  </select>
+                  <ul class="list" id="suggestionList"></ul>
+                </div>
+              </details>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2>AI Antrenman Koçu</h2>
+              </div>
+              <form class="inline-form" id="aiWorkoutForm">
+                <input type="text" id="aiWorkoutInput" class="input" placeholder="Örn: Bugün 20 dakikam var, göğüs ve duruş öner..." required />
+                <button type="submit" class="primary-btn" id="aiWorkoutBtn">Öner</button>
+              </form>
+              <div id="aiWorkoutResult" class="ai-output hidden mt-12"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2>Son Antrenmanlar</h2>
+                <span class="badge" id="workoutStreakBadge">0 gün</span>
+              </div>
+              <ul class="list" id="workoutHistory"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== TAB 4: BESLENME ===================== -->
+      <section class="tab-panel" id="tab-nutrition">
+        <div class="card mb-16">
+          <div class="macro-header">
+            <div>
+              <h2>Günlük Kalori &amp; Makro</h2>
+              <p class="muted small" id="calorieRemainingText">Hedefine 2100 kcal kaldı</p>
+            </div>
+            <div class="calorie-big">
+              <strong id="calTotal">0</strong> <span>/ <span id="calTarget">2100</span> kcal</span>
+            </div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="calProgressFill" style="width: 0%"></div>
+          </div>
+          <div class="macro-grid">
+            <div class="macro-item">
+              <span class="muted small">Protein</span>
+              <strong><span id="macroProtein">0</span>g / <span id="targetProtein">140</span>g</strong>
+            </div>
+            <div class="macro-item">
+              <span class="muted small">Karbonhidrat</span>
+              <strong><span id="macroCarb">0</span>g / <span id="targetCarb">235</span>g</strong>
+            </div>
+            <div class="macro-item">
+              <span class="muted small">Yağ</span>
+              <strong><span id="macroFat">0</span>g / <span id="targetFat">65</span>g</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- Natural Language Meal Input -->
+          <div class="card">
+            <div class="card-header">
+              <h2>Ne Yedin? (Cümleyle Yaz)</h2>
+              <select id="mealTypeSelect" class="input compact-select">
+                <option value="Kahvaltı">Kahvaltı</option>
+                <option value="Öğle">Öğle</option>
+                <option value="Akşam">Akşam</option>
+                <option value="Ara Öğün">Ara Öğün</option>
+              </select>
+            </div>
+
+            <form id="aiMealForm">
+              <textarea id="aiMealInput" class="textarea" rows="3" placeholder="Örn: Sabah 2 haşlanmış yumurta, 2 kaşık süzme yoğurt, 1 bardak laktozsuz süt ve 1 dilim tam buğday ekmek yedim..." required></textarea>
+              <button type="submit" class="primary-btn full-w mt-12" id="aiMealBtn">Hesapla ve Kaydet (AI)</button>
+            </form>
+
+            <details class="custom-food-details mt-12">
+              <summary class="muted small">+ Manuel kalori gir (çevrimdışı için)</summary>
+              <form class="custom-food-form" id="customFoodForm">
+                <input type="text" id="cfName" class="input full-span" placeholder="Yemek adı" required />
+                <input type="number" id="cfCal" class="input" placeholder="Kalori" min="0" required />
+                <input type="number" id="cfPro" class="input" placeholder="Protein (g)" min="0" value="0" />
+                <input type="number" id="cfCarb" class="input" placeholder="Karb (g)" min="0" value="0" />
+                <input type="number" id="cfFat" class="input" placeholder="Yağ (g)" min="0" value="0" />
+                <button type="submit" class="primary-btn full-span">Manuel Ekle</button>
+              </form>
+            </details>
+
+            <ul class="list mt-12" id="mealList"></ul>
+          </div>
+
+          <!-- AI Diet Advisor -->
+          <div class="card">
+            <div class="card-header">
+              <h2>Diyet &amp; Öğün Önerisi</h2>
+              <button class="ghost-btn" id="askDietAdviceBtn">AI Öneri Al</button>
+            </div>
+            <div class="diet-advice" id="dietAdviceBox">
+              Evdeki malzemelerine (ton balığı, tavuk, süzme yoğurt, laktozsuz süt, salata, mısır, turşu) ve kalan kalorine göre öneri almak için "AI Öneri Al" butonuna basabilirsin.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Water Reminder Corner Pill -->
+  <div class="water-toast hidden" id="waterToast">
+    <span>💧 Su içtin mi?</span>
+    <button class="mini-add-btn" id="waterAckBtn">İçtim ✓</button>
+    <button class="delete-btn" id="waterDismissBtn" title="Kapat">&times;</button>
+  </div>
+
+  <!-- Floating AI Coach Button -->
+  <button class="chat-fab" id="chatFab" title="Koçunla Konuş">
+    <span>✦ Koç</span>
+  </button>
+
+  <!-- Persistent AI Coach Drawer -->
+  <aside class="chat-drawer hidden" id="chatDrawer">
+    <div class="chat-header">
+      <div>
+        <strong>Kişisel Koçun (Gemini)</strong>
+        <p class="muted small">Hafızalı · "Şu tarihe şunu ekle" diyebilirsin</p>
+      </div>
+      <div class="inline-form">
+        <button class="text-btn" id="clearChatBtn" title="Sohbeti temizle">Temizle</button>
+        <button class="icon-btn" id="closeChatBtn">&times;</button>
+      </div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <form class="chat-input-bar" id="chatForm">
+      <input type="text" id="chatInput" class="input" placeholder="Mesaj yaz (örn: Yarına IELTS Reading ekle)..." required />
+      <button type="submit" class="primary-btn" id="chatSendBtn">Gönder</button>
+    </form>
+  </aside>
+
+  <!-- Settings & Cloud Connection Modal -->
+  <div class="modal-backdrop hidden" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Ayarlar, Gemini AI &amp; Bulut Senkronizasyon</h2>
+        <button class="icon-btn" id="closeSettingsBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Gemini API Key -->
+        <div class="settings-block">
+          <h3>1. Gemini AI Bağlantısı (Ücretsiz)</h3>
+          <p class="muted small">Google AI Studio'dan aldığın ücretsiz API anahtarını gir. Sadece bu cihazda saklanır, GitHub'a gitmez.</p>
+          <div class="inline-form mt-8">
+            <input type="password" id="geminiKeyInput" class="input" placeholder="AIza..." />
+            <button type="button" class="ghost-btn" id="testGeminiBtn">Test Et</button>
+          </div>
+          <p class="small mt-8 hidden" id="geminiTestStatus"></p>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Firebase Real-Time Sync -->
+        <div class="settings-block">
+          <h3>2. Anlık Senkronizasyon (Firebase Firestore)</h3>
+          <p class="muted small">PC ve tabletin anlık eşitlenmesi için Firebase web ayarlarını (JSON) yapıştır ve ortak bir Oda/Kullanıcı Kodu belirle.</p>
+          <input type="text" id="syncRoomInput" class="input mt-8" placeholder="Kişisel Senkronizasyon Kodun (örn: arife-panel-2026)" />
+          <textarea id="firebaseConfigInput" class="textarea mt-8" rows="3" placeholder='{"apiKey":"...","authDomain":"...","projectId":"..."}'></textarea>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Profile & IELTS Date -->
+        <div class="settings-block">
+          <h3>3. Hedeflerim (174 cm · 70 kg · 25 yaş)</h3>
+          <div class="profile-form mt-8">
+            <div class="field">
+              <label for="profIeltsDate">IELTS Sınav Tarihi</label>
+              <input type="date" id="profIeltsDate" class="input" />
+            </div>
+            <div class="field">
+              <label for="profCalTarget">Günlük Kalori (kcal)</label>
+              <input type="number" id="profCalTarget" class="input" step="50" />
+            </div>
+            <div class="field">
+              <label for="profProTarget">Günlük Protein (g)</label>
+              <input type="number" id="profProTarget" class="input" step="5" />
+            </div>
+            <div class="field">
+              <label for="profWaterMins">Su Hatırlatma (dk)</label>
+              <input type="number" id="profWaterMins" class="input" min="15" max="240" step="15" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions mt-16">
+          <button type="button" class="ghost-btn" id="exportDataBtn">JSON Yedek İndir</button>
+          <label class="ghost-btn file-label">
+            Yedek Yükle
+            <input type="file" id="importDataInput" accept=".json" hidden />
+          </label>
+          <button type="button" class="primary-btn" id="saveSettingsBtn">Kaydet</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="ai.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
